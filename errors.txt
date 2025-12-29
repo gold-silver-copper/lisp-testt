@@ -1,0 +1,143 @@
+   Compiling lisp-test v0.1.0 (/Users/kisaczka/Desktop/code/lisp-test)
+error[E0599]: the method `get` exists for struct `Cell<Option<(Cell<&'a (dyn Any + 'static)>, Cell<&'a (dyn Any + 'static)>)>>`, but its trait bounds were not satisfied
+   --> src/lib.rs:60:31
+    |
+ 60 |             if self.pool[idx].get().is_none() {
+    |                               ^^^
+    |
+   ::: /Users/kisaczka/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:600:1
+    |
+600 | pub enum Option<T> {
+    | ------------------ doesn't satisfy `_: Copy`
+    |
+   ::: /Users/kisaczka/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:313:1
+    |
+313 | pub struct Cell<T: ?Sized> {
+    | -------------------------- doesn't satisfy `Cell<&'a (dyn Any + 'static)>: core::marker::Copy`
+    |
+    = note: the following trait bounds were not satisfied:
+            `Cell<&'a (dyn Any + 'static)>: core::marker::Copy`
+            which is required by `Option<(Cell<&'a (dyn Any + 'static)>, Cell<&'a (dyn Any + 'static)>)>: core::marker::Copy`
+
+error[E0599]: the method `get` exists for struct `Cell<Option<(Cell<&'a (dyn Any + 'static)>, Cell<&'a (dyn Any + 'static)>)>>`, but its trait bounds were not satisfied
+   --> src/lib.rs:65:53
+    |
+ 65 |                 if let Some(ref c) = self.pool[idx].get() {
+    |                                                     ^^^
+    |
+   ::: /Users/kisaczka/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:600:1
+    |
+600 | pub enum Option<T> {
+    | ------------------ doesn't satisfy `_: Copy`
+    |
+   ::: /Users/kisaczka/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:313:1
+    |
+313 | pub struct Cell<T: ?Sized> {
+    | -------------------------- doesn't satisfy `Cell<&'a (dyn Any + 'static)>: core::marker::Copy`
+    |
+    = note: the following trait bounds were not satisfied:
+            `Cell<&'a (dyn Any + 'static)>: core::marker::Copy`
+            which is required by `Option<(Cell<&'a (dyn Any + 'static)>, Cell<&'a (dyn Any + 'static)>)>: core::marker::Copy`
+
+error: lifetime may not live long enough
+  --> src/lib.rs:74:9
+   |
+48 | impl<'a> Allocator<'a> {
+   |      -- lifetime `'a` defined here
+...
+74 |         self.alloc(car, cdr).unwrap() as &'a dyn Any
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cast requires that `'a` must outlive `'static`
+
+error[E0597]: `sym` does not live long enough
+   --> src/lib.rs:134:30
+    |
+128 | pub fn env_extend<'a>(
+    |                   -- lifetime `'a` defined here
+...
+131 |     sym: Symbol,
+    |     --- binding `sym` declared here
+...
+134 |     let binding = alloc.cons(&sym as &'a dyn Any, val);
+    |                              ^^^^    ----------- type annotation requires that `sym` is borrowed for `'a`
+    |                              |
+    |                              borrowed value does not live long enough
+135 |     alloc.cons(binding, env)
+136 | }
+    |  - `sym` dropped here while still borrowed
+
+error[E0597]: `lambda` does not live long enough
+   --> src/lib.rs:199:42
+    |
+198 |                     let lambda = Lambda { params, body, env };
+    |                         ------ binding `lambda` declared here
+199 |                     return Ok(alloc.cons(&lambda as &'a dyn Any, &Nil as &'a dyn Any));
+    |                                          ^^^^^^^---------------
+    |                                          |
+    |                                          borrowed value does not live long enough
+    |                                          cast requires that `lambda` is borrowed for `'static`
+200 |                 }
+    |                 - `lambda` dropped here while still borrowed
+
+error: lifetime may not live long enough
+   --> src/lib.rs:199:42
+    |
+140 | pub fn eval<'a>(
+    |             -- lifetime `'a` defined here
+...
+199 |                     return Ok(alloc.cons(&lambda as &'a dyn Any, &Nil as &'a dyn Any));
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^ cast requires that `'a` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `alloc`, you can add an explicit `'a` lifetime bound
+    |
+144 | ) -> Result<&'a dyn Any + 'a, &'static str> {
+    |                         ++++
+
+error[E0597]: `sum` does not live long enough
+   --> src/lib.rs:270:38
+    |
+230 | pub fn apply<'a>(
+    |              -- lifetime `'a` defined here
+...
+263 |                 let mut sum = 0i64;
+    |                     ------- binding `sum` declared here
+...
+270 |                 return Ok(alloc.cons(&sum as &'a dyn Any, &Nil as &'a dyn Any));
+    |                                      ^^^^    ----------- type annotation requires that `sum` is borrowed for `'a`
+    |                                      |
+    |                                      borrowed value does not live long enough
+271 |             }
+    |             - `sum` dropped here while still borrowed
+
+error[E0597]: `result` does not live long enough
+   --> src/lib.rs:282:38
+    |
+230 | pub fn apply<'a>(
+    |              -- lifetime `'a` defined here
+...
+275 |                 let mut result = first;
+    |                     ---------- binding `result` declared here
+...
+282 |                 return Ok(alloc.cons(&result as &'a dyn Any, &Nil as &'a dyn Any));
+    |                                      ^^^^^^^    ----------- type annotation requires that `result` is borrowed for `'a`
+    |                                      |
+    |                                      borrowed value does not live long enough
+283 |             }
+    |             - `result` dropped here while still borrowed
+
+error[E0716]: temporary value dropped while borrowed
+   --> src/lib.rs:345:53
+    |
+339 | pub fn make_initial_env<'a>(alloc: &Allocator<'a>) -> &'a dyn Any {
+    |                         -- lifetime `'a` defined here
+...
+345 |         env = env_extend(alloc, env, Symbol(name), &Symbol(name) as &'a dyn Any);
+    |                                                     ^^^^^^^^^^^^    ----------- - temporary value is freed at the end of this statement
+    |                                                     |               |
+    |                                                     |               type annotation requires that borrow lasts for `'a`
+    |                                                     creates a temporary value which is freed while still in use
+
+Some errors have detailed explanations: E0597, E0599, E0716.
+For more information about an error, try `rustc --explain E0597`.
+error: could not compile `lisp-test` (lib) due to 9 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `lisp-test` (lib test) due to 9 previous errors

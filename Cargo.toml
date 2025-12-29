@@ -1,0 +1,18 @@
+[package]
+name = "macro_lisp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[[example]]
+name = "repl"
+path = "examples/repl.rs"
+
+[lib]
+name = "macro_lisp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "macro_lisp"
+path = "src/main.rs"
