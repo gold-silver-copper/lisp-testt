@@ -1,18 +1,39 @@
 [package]
-name = "macro_lisp"
+name = "borrow_lang"
 version = "0.1.0"
 edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A typed, borrow-checked Lisp-like programming language with macro_rules!"
+license = "MIT"
+keywords = ["lisp", "interpreter", "type-system", "borrow-checker", "macro"]
+categories = ["compilers", "development-tools"]
 
-[dependencies]
+[lib]
+name = "borrow_lang"
+path = "src/lib.rs"
 
 [[example]]
 name = "repl"
 path = "examples/repl.rs"
 
-[lib]
-name = "macro_lisp"
-path = "src/lib.rs"
+[[example]]
+name = "macro_demo"
+path = "examples/macro_demo.rs"
 
-[[bin]]
-name = "macro_lisp"
-path = "src/main.rs"
+[dependencies]
+# Zero dependencies - pure Rust implementation!
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+
+# Package metadata
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -8,10 +8,8 @@
 /// - Demonstrates both approaches side-by-side
 use std::collections::HashMap;
 use std::io::{self, Write};
-
 // Import the macro from our library
-use macro_lisp::{defn, lisp};
-
+use borrow_lang::{defn, defn_bool, defn_logic, lisp};
 #[derive(Debug, Clone, PartialEq)]
 enum Value {
     Int(i64),
@@ -22,7 +20,6 @@ enum Value {
     Function(String), // Built-in macro functions
     Nil,
 }
-
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -45,31 +42,39 @@ impl std::fmt::Display for Value {
         }
     }
 }
-
 // Pre-compiled macro functions
+defn!(lisp_add (x y) (+ x y));
+defn!(lisp_sub (x y) (- x y));
+defn!(lisp_mul (x y) (* x y));
+defn!(lisp_div (x y) (/ x y));
+defn!(lisp_mod (x y) (% x y));
+defn_bool!(lisp_lt (x y) (< x y));
+defn_bool!(lisp_gt (x y) (> x y));
+defn_bool!(lisp_le (x y) (<= x y));
+defn_bool!(lisp_ge (x y) (>= x y));
+defn_bool!(lisp_eq (x y) (== x y));
+defn_bool!(lisp_ne (x y) (!= x y));
+defn_logic!(lisp_and (x y) (and x y));
+defn_logic!(lisp_or (x y) (or x y));
+defn_logic!(lisp_not (x) (not x));
 defn!(macro_square (x) (* x x));
 defn!(macro_cube (x) (* x (* x x)));
 defn!(macro_add_three (x y z) (+ x y z));
-
-fn macro_factorial(n: i32) -> i32 {
+fn macro_factorial(n: i64) -> i64 {
     lisp!((if (<= n 1) 1 (* n (macro_factorial (- n 1)))))
 }
-
-fn macro_fib(n: i32) -> i32 {
+fn macro_fib(n: i64) -> i64 {
     lisp!((if (<= n 1)
         n
         (+ (macro_fib (- n 1)) (macro_fib (- n 2)))
     ))
 }
-
-fn macro_sum_of_squares(a: i32, b: i32) -> i32 {
+fn macro_sum_of_squares(a: i64, b: i64) -> i64 {
     lisp!((+ (* a a) (* b b)))
 }
-
-fn macro_is_even(n: i32) -> bool {
+fn macro_is_even(n: i64) -> bool {
     lisp!((== (% n 2) 0))
 }
-
 #[derive(Debug)]
 enum Token {
     LParen,
@@ -77,11 +82,9 @@ enum Token {
     Symbol(String),
     Number(String),
 }
-
 fn tokenize(input: &str) -> Result<Vec<Token>, String> {
     let mut tokens = Vec::new();
     let mut chars = input.chars().peekable();
-
     while let Some(&ch) = chars.peek() {
         match ch {
             ' ' | '\t' | '\n' | '\r' => {
@@ -104,7 +107,6 @@ fn tokenize(input: &str) -> Result<Vec<Token>, String> {
                     symbol.push(ch);
                     chars.next();
                 }
-
                 if symbol
                     .chars()
                     .all(|c| c.is_numeric() || c == '-' || c == '.')
@@ -116,15 +118,12 @@ fn tokenize(input: &str) -> Result<Vec<Token>, String> {
             }
         }
     }
-
     Ok(tokens)
 }
-
 fn parse(tokens: &[Token]) -> Result<(Value, usize), String> {
     if tokens.is_empty() {
         return Err("Unexpected end of input".to_string());
     }
-
     match &tokens[0] {
         Token::Number(n) => {
             if n.contains('.') {
@@ -145,39 +144,32 @@ fn parse(tokens: &[Token]) -> Result<(Value, usize), String> {
         Token::LParen => {
             let mut i = 1;
             let mut list = Vec::new();
-
             while i < tokens.len() {
                 if matches!(tokens[i], Token::RParen) {
                     return Ok((Value::List(list), i + 1));
                 }
-
                 let (val, consumed) = parse(&tokens[i..])?;
                 list.push(val);
                 i += consumed;
             }
-
             Err("Unmatched '('".to_string())
         }
         Token::RParen => Err("Unexpected ')'".to_string()),
     }
 }
-
 fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String> {
     match expr {
         Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil | Value::Function(_) => {
             Ok(expr.clone())
         }
-
         Value::Symbol(s) => env
             .get(s)
             .cloned()
             .ok_or_else(|| format!("Undefined symbol: {}", s)),
-
         Value::List(items) => {
             if items.is_empty() {
                 return Ok(Value::Nil);
             }
-
             let first = &items[0];
             if let Value::Symbol(op) = first {
                 match op.as_str() {
@@ -187,7 +179,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             return Err("square requires 1 argument".to_string());
                         }
                         if let Value::Int(n) = eval(&items[1], env)? {
-                            Ok(Value::Int(macro_square(n as i32) as i64))
+                            Ok(Value::Int(macro_square(n)))
                         } else {
                             Err("square requires integer".to_string())
                         }
@@ -197,7 +189,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             return Err("cube requires 1 argument".to_string());
                         }
                         if let Value::Int(n) = eval(&items[1], env)? {
-                            Ok(Value::Int(macro_cube(n as i32) as i64))
+                            Ok(Value::Int(macro_cube(n)))
                         } else {
                             Err("cube requires integer".to_string())
                         }
@@ -207,7 +199,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             return Err("factorial requires 1 argument".to_string());
                         }
                         if let Value::Int(n) = eval(&items[1], env)? {
-                            Ok(Value::Int(macro_factorial(n as i32) as i64))
+                            Ok(Value::Int(macro_factorial(n)))
                         } else {
                             Err("factorial requires integer".to_string())
                         }
@@ -217,7 +209,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             return Err("fib requires 1 argument".to_string());
                         }
                         if let Value::Int(n) = eval(&items[1], env)? {
-                            Ok(Value::Int(macro_fib(n as i32) as i64))
+                            Ok(Value::Int(macro_fib(n)))
                         } else {
                             Err("fib requires integer".to_string())
                         }
@@ -229,7 +221,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Int(x), Value::Int(y)) = (a, b) {
-                            Ok(Value::Int(macro_sum_of_squares(x as i32, y as i32) as i64))
+                            Ok(Value::Int(macro_sum_of_squares(x, y)))
                         } else {
                             Err("sum-of-squares requires integers".to_string())
                         }
@@ -239,21 +231,32 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             return Err("even? requires 1 argument".to_string());
                         }
                         if let Value::Int(n) = eval(&items[1], env)? {
-                            Ok(Value::Bool(macro_is_even(n as i32)))
+                            Ok(Value::Bool(macro_is_even(n)))
                         } else {
                             Err("even? requires integer".to_string())
                         }
                     }
-
-                    // Standard runtime operations
+                    // Standard runtime operations, now using macro-based binary ops where possible
                     "+" => {
-                        let mut sum = 0i64;
+                        let mut args = Vec::new();
                         for arg in &items[1..] {
-                            if let Value::Int(n) = eval(arg, env)? {
-                                sum += n;
+                            args.push(eval(arg, env)?);
+                        }
+                        if args.is_empty() {
+                            return Ok(Value::Int(0));
+                        }
+                        let mut sum = if let Value::Int(n) = &args[0] {
+                            *n
+                        } else {
+                            return Err("+ requires integers".to_string());
+                        };
+                        for arg in &args[1..] {
+                            let n = if let Value::Int(n) = arg {
+                                *n
                             } else {
                                 return Err("+ requires integers".to_string());
-                            }
+                            };
+                            sum = lisp_add(sum, n);
                         }
                         Ok(Value::Int(sum))
                     }
@@ -264,19 +267,31 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Int(x), Value::Int(y)) = (a, b) {
-                            Ok(Value::Int(x - y))
+                            Ok(Value::Int(lisp_sub(x, y)))
                         } else {
                             Err("- requires integers".to_string())
                         }
                     }
                     "*" => {
-                        let mut product = 1i64;
+                        let mut args = Vec::new();
                         for arg in &items[1..] {
-                            if let Value::Int(n) = eval(arg, env)? {
-                                product *= n;
+                            args.push(eval(arg, env)?);
+                        }
+                        if args.is_empty() {
+                            return Ok(Value::Int(1));
+                        }
+                        let mut product = if let Value::Int(n) = &args[0] {
+                            *n
+                        } else {
+                            return Err("* requires integers".to_string());
+                        };
+                        for arg in &args[1..] {
+                            let n = if let Value::Int(n) = arg {
+                                *n
                             } else {
                                 return Err("* requires integers".to_string());
-                            }
+                            };
+                            product = lisp_mul(product, n);
                         }
                         Ok(Value::Int(product))
                     }
@@ -290,7 +305,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             if y == 0 {
                                 return Err("Division by zero".to_string());
                             }
-                            Ok(Value::Int(x / y))
+                            Ok(Value::Int(lisp_div(x, y)))
                         } else {
                             Err("/ requires integers".to_string())
                         }
@@ -302,12 +317,11 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Int(x), Value::Int(y)) = (a, b) {
-                            Ok(Value::Int(x % y))
+                            Ok(Value::Int(lisp_mod(x, y)))
                         } else {
                             Err("% requires integers".to_string())
                         }
                     }
-
                     "<" => {
                         if items.len() != 3 {
                             return Err("< requires exactly 2 arguments".to_string());
@@ -315,7 +329,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Int(x), Value::Int(y)) = (a, b) {
-                            Ok(Value::Bool(x < y))
+                            Ok(Value::Bool(lisp_lt(x, y)))
                         } else {
                             Err("< requires integers".to_string())
                         }
@@ -327,7 +341,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Int(x), Value::Int(y)) = (a, b) {
-                            Ok(Value::Bool(x > y))
+                            Ok(Value::Bool(lisp_gt(x, y)))
                         } else {
                             Err("> requires integers".to_string())
                         }
@@ -347,12 +361,11 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Int(x), Value::Int(y)) = (a, b) {
-                            Ok(Value::Bool(x <= y))
+                            Ok(Value::Bool(lisp_le(x, y)))
                         } else {
                             Err("<= requires integers".to_string())
                         }
                     }
-
                     "and" => {
                         if items.len() != 3 {
                             return Err("and requires exactly 2 arguments".to_string());
@@ -360,7 +373,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Bool(x), Value::Bool(y)) = (a, b) {
-                            Ok(Value::Bool(x && y))
+                            Ok(Value::Bool(lisp_and(x, y)))
                         } else {
                             Err("and requires booleans".to_string())
                         }
@@ -372,7 +385,7 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         let a = eval(&items[1], env)?;
                         let b = eval(&items[2], env)?;
                         if let (Value::Bool(x), Value::Bool(y)) = (a, b) {
-                            Ok(Value::Bool(x || y))
+                            Ok(Value::Bool(lisp_or(x, y)))
                         } else {
                             Err("or requires booleans".to_string())
                         }
@@ -383,12 +396,11 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                         }
                         let a = eval(&items[1], env)?;
                         if let Value::Bool(x) = a {
-                            Ok(Value::Bool(!x))
+                            Ok(Value::Bool(lisp_not(x)))
                         } else {
                             Err("not requires boolean".to_string())
                         }
                     }
-
                     "if" => {
                         if items.len() != 4 {
                             return Err("if requires exactly 3 arguments".to_string());
@@ -404,7 +416,6 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             Err("if condition must be boolean".to_string())
                         }
                     }
-
                     "let" => {
                         if items.len() != 4 {
                             return Err("let requires exactly 3 arguments".to_string());
@@ -418,7 +429,6 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             Err("let requires symbol as first argument".to_string())
                         }
                     }
-
                     "define" => {
                         if items.len() != 3 {
                             return Err("define requires exactly 2 arguments".to_string());
@@ -431,7 +441,6 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             Err("define requires symbol as first argument".to_string())
                         }
                     }
-
                     "list" => {
                         let mut result = Vec::new();
                         for arg in &items[1..] {
@@ -481,7 +490,6 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
                             Err("cons requires list as second argument".to_string())
                         }
                     }
-
                     _ => Err(format!("Unknown operator: {}", op)),
                 }
             } else {
@@ -490,37 +498,30 @@ fn eval(expr: &Value, env: &mut HashMap<String, Value>) -> Result<Value, String>
         }
     }
 }
-
 fn repl() {
     println!("╔════════════════════════════════════════════════════════════╗");
-    println!("║           Macro Lisp REPL v2.0 (Hybrid Mode)              ║");
+    println!("║ Macro Lisp REPL v2.0 (Hybrid Mode) ║");
     println!("╠════════════════════════════════════════════════════════════╣");
-    println!("║  Using compile-time macros for built-in functions!        ║");
-    println!("║  Type Lisp expressions and press Enter                    ║");
-    println!("║  Commands: :help, :quit, :clear, :macros                  ║");
+    println!("║ Using compile-time macros for built-in functions! ║");
+    println!("║ Type Lisp expressions and press Enter ║");
+    println!("║ Commands: :help, :quit, :clear, :macros ║");
     println!("╚════════════════════════════════════════════════════════════╝");
     println!();
     println!("🚀 Macro-compiled functions available: square, cube, factorial, fib");
-    println!("   sum-of-squares, even?");
+    println!(" sum-of-squares, even?");
     println!();
-
     let mut env = HashMap::new();
-
     loop {
         print!("λ> ");
         io::stdout().flush().unwrap();
-
         let mut input = String::new();
         if io::stdin().read_line(&mut input).is_err() {
             break;
         }
-
         let input = input.trim();
-
         if input.is_empty() {
             continue;
         }
-
         match input {
             ":quit" | ":q" | ":exit" => {
                 println!("Goodbye!");
@@ -538,7 +539,7 @@ fn repl() {
             ":env" => {
                 println!("Current environment:");
                 for (key, val) in &env {
-                    println!("  {} = {}", key, val);
+                    println!(" {} = {}", key, val);
                 }
                 continue;
             }
@@ -548,7 +549,6 @@ fn repl() {
             }
             _ => {}
         }
-
         match tokenize(input) {
             Ok(tokens) => match parse(&tokens) {
                 Ok((expr, _)) => match eval(&expr, &mut env) {
@@ -561,99 +561,91 @@ fn repl() {
         }
     }
 }
-
 fn print_macros() {
     println!("╔════════════════════════════════════════════════════════════╗");
-    println!("║              MACRO-COMPILED FUNCTIONS                      ║");
+    println!("║ MACRO-COMPILED FUNCTIONS ║");
     println!("╠════════════════════════════════════════════════════════════╣");
-    println!("║ These functions use the compile-time macro_lisp library   ║");
-    println!("║ and are compiled to native Rust code for maximum speed!   ║");
-    println!("║                                                            ║");
-    println!("║ (square x)           - x²                                 ║");
-    println!("║ (cube x)             - x³                                 ║");
-    println!("║ (factorial n)        - n! (recursive)                     ║");
-    println!("║ (fib n)              - Fibonacci(n) (recursive)           ║");
-    println!("║ (sum-of-squares a b) - a² + b²                            ║");
-    println!("║ (even? n)            - Check if n is even                 ║");
-    println!("║                                                            ║");
-    println!("║ Example usage:                                             ║");
-    println!("║   λ> (square 5)                                            ║");
-    println!("║   => 25                                                    ║");
-    println!("║   λ> (factorial 10)                                        ║");
-    println!("║   => 3628800                                               ║");
+    println!("║ These functions use the compile-time macro_lisp library ║");
+    println!("║ and are compiled to native Rust code for maximum speed! ║");
+    println!("║ ║");
+    println!("║ (square x) - x² ║");
+    println!("║ (cube x) - x³ ║");
+    println!("║ (factorial n) - n! (recursive) ║");
+    println!("║ (fib n) - Fibonacci(n) (recursive) ║");
+    println!("║ (sum-of-squares a b) - a² + b² ║");
+    println!("║ (even? n) - Check if n is even ║");
+    println!("║ ║");
+    println!("║ Example usage: ║");
+    println!("║ λ> (square 5) ║");
+    println!("║ => 25 ║");
+    println!("║ λ> (factorial 10) ║");
+    println!("║ => 3628800 ║");
     println!("╚════════════════════════════════════════════════════════════╝");
 }
-
 fn print_help() {
     println!("╔════════════════════════════════════════════════════════════╗");
-    println!("║                    MACRO LISP HELP                         ║");
+    println!("║ MACRO LISP HELP ║");
     println!("╠════════════════════════════════════════════════════════════╣");
-    println!("║ Arithmetic:                                                ║");
-    println!("║   (+ 1 2 3)      => 6                                      ║");
-    println!("║   (- 10 3)       => 7                                      ║");
-    println!("║   (* 2 3 4)      => 24                                     ║");
-    println!("║   (/ 20 4)       => 5                                      ║");
-    println!("║                                                            ║");
-    println!("║ Comparisons:                                               ║");
-    println!("║   (< 5 10)       => true                                   ║");
-    println!("║   (> 5 10)       => false                                  ║");
-    println!("║   (== 5 5)       => true                                   ║");
-    println!("║                                                            ║");
-    println!("║ Logic:                                                     ║");
-    println!("║   (and true false)  => false                               ║");
-    println!("║   (or true false)   => true                                ║");
-    println!("║   (not true)        => false                               ║");
-    println!("║                                                            ║");
-    println!("║ Control Flow:                                              ║");
-    println!("║   (if (< 5 10) 100 200)  => 100                            ║");
-    println!("║                                                            ║");
-    println!("║ Variables:                                                 ║");
-    println!("║   (define x 42)          => 42                             ║");
-    println!("║   (let x 5 (+ x 10))     => 15                             ║");
-    println!("║                                                            ║");
-    println!("║ Lists:                                                     ║");
-    println!("║   (list 1 2 3)           => (1 2 3)                        ║");
-    println!("║   (car (list 1 2 3))     => 1                              ║");
-    println!("║   (cdr (list 1 2 3))     => (2 3)                          ║");
-    println!("║   (cons 0 (list 1 2))    => (0 1 2)                        ║");
-    println!("║                                                            ║");
-    println!("║ 🚀 Macro Functions (compiled):                             ║");
-    println!("║   (square 5)             => 25                             ║");
-    println!("║   (factorial 5)          => 120                            ║");
-    println!("║   (fib 10)               => 55                             ║");
-    println!("║                                                            ║");
-    println!("║ Commands:                                                  ║");
-    println!("║   :help, :h    - Show this help                            ║");
-    println!("║   :macros, :m  - Show macro functions                      ║");
-    println!("║   :quit, :q    - Exit REPL                                 ║");
-    println!("║   :clear, :c   - Clear environment                         ║");
-    println!("║   :env         - Show environment                          ║");
+    println!("║ Arithmetic: ║");
+    println!("║ (+ 1 2 3) => 6 ║");
+    println!("║ (- 10 3) => 7 ║");
+    println!("║ (* 2 3 4) => 24 ║");
+    println!("║ (/ 20 4) => 5 ║");
+    println!("║ ║");
+    println!("║ Comparisons: ║");
+    println!("║ (< 5 10) => true ║");
+    println!("║ (> 5 10) => false ║");
+    println!("║ (== 5 5) => true ║");
+    println!("║ ║");
+    println!("║ Logic: ║");
+    println!("║ (and true false) => false ║");
+    println!("║ (or true false) => true ║");
+    println!("║ (not true) => false ║");
+    println!("║ ║");
+    println!("║ Control Flow: ║");
+    println!("║ (if (< 5 10) 100 200) => 100 ║");
+    println!("║ ║");
+    println!("║ Variables: ║");
+    println!("║ (define x 42) => 42 ║");
+    println!("║ (let x 5 (+ x 10)) => 15 ║");
+    println!("║ ║");
+    println!("║ Lists: ║");
+    println!("║ (list 1 2 3) => (1 2 3) ║");
+    println!("║ (car (list 1 2 3)) => 1 ║");
+    println!("║ (cdr (list 1 2 3)) => (2 3) ║");
+    println!("║ (cons 0 (list 1 2)) => (0 1 2) ║");
+    println!("║ ║");
+    println!("║ 🚀 Macro Functions (compiled): ║");
+    println!("║ (square 5) => 25 ║");
+    println!("║ (factorial 5) => 120 ║");
+    println!("║ (fib 10) => 55 ║");
+    println!("║ ║");
+    println!("║ Commands: ║");
+    println!("║ :help, :h - Show this help ║");
+    println!("║ :macros, :m - Show macro functions ║");
+    println!("║ :quit, :q - Exit REPL ║");
+    println!("║ :clear, :c - Clear environment ║");
+    println!("║ :env - Show environment ║");
     println!("╚════════════════════════════════════════════════════════════╝");
 }
-
 fn main() {
     repl();
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_macro_functions() {
         let mut env = HashMap::new();
-
         let tokens = tokenize("(square 5)").unwrap();
         let (expr, _) = parse(&tokens).unwrap();
         let result = eval(&expr, &mut env).unwrap();
         assert_eq!(result, Value::Int(25));
-
         let tokens = tokenize("(factorial 5)").unwrap();
         let (expr, _) = parse(&tokens).unwrap();
         let result = eval(&expr, &mut env).unwrap();
         assert_eq!(result, Value::Int(120));
     }
-
     #[test]
     fn test_runtime_arithmetic() {
         let mut env = HashMap::new();
